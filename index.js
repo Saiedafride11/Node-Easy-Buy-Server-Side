@@ -85,24 +85,11 @@ async function run() {
     res.send(payment)
   })
 
-  app.post("/create-payment-intent", async (req, res) => {
-    const { paymentInfo } = req.body;
-    const amount = paymentInfo.orderTotal * 100;
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: calculateOrderAmount(items),
-      currency: "usd",
-      amount: amount,
-      automatic_payment_methods: ['card']
-    });
   
-    res.send({
-      clientSecret: paymentIntent.client_secret,
-    });
-  });
-
   app.get('/payment/:id', async (req, res) => {
     const id = req.params.id;
-    const query = { _id: ObjectId(id) };
+    // const query = { _id: ObjectId(id) };
+    const query = { _id: id };
     const result = await paymentCollection.findOne(query);
     res.json(result);
 })
@@ -111,7 +98,8 @@ async function run() {
   app.put('/payment/:id', async (req, res) => {
     const id = req.params.id;
     const payment = req.body;
-    const filter = { _id: ObjectId(id) };
+    // const filter = { _id: ObjectId(id) };
+    const filter = { _id: id };
     const updateDoc = {
         $set: {
             payment: payment
@@ -120,6 +108,20 @@ async function run() {
     const result = await paymentCollection.updateOne(filter, updateDoc);
     res.json(result);
 })
+
+
+app.post("/create-payment-intent", async (req, res) => {
+  const  paymentInfo  = req.body;
+  const amount = paymentInfo.orderTotal * 100;
+  const paymentIntent = await stripe.paymentIntents.create({
+    currency: "usd",
+    amount: amount,
+    payment_method_types: ['card']
+  });
+
+  res.json({ clientSecret: paymentIntent.client_secret });
+});
+
   
     } finally {
       // await client.close();
