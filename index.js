@@ -3,6 +3,7 @@ const { MongoClient } = require('mongodb');
 require('dotenv').config();
 const cors = require('cors');
 const ObjectId = require('mongodb').ObjectId;
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 
 const app = express()
 const port = process.env.PORT || 5000
@@ -20,6 +21,7 @@ async function run() {
       const database = client.db("easyBuy");
       const productsCollection = database.collection("products");
       const ordersCollection = database.collection("orders");
+      const paymentCollection = database.collection("payments");
       
     //GET API cars
     app.get('/products', async (req, res) => {
@@ -65,6 +67,59 @@ async function run() {
         res.json(order);
     })
    
+     // ---------------------------------------------------------
+    // ------------------- paymentCollection  -----------------------------
+    // ---------------------------------------------------------
+
+    // POST API payment
+    app.post('/payment', async (req, res) => {
+      const order = req.body;
+      const payment = await paymentCollection.insertOne(order)
+      res.json(payment)
+  })
+
+  //GET API Orders
+  app.get('/payment', async (req, res) => {
+    const cursor = paymentCollection.find({})
+    const payment = await cursor.toArray()
+    res.send(payment)
+  })
+
+  app.post("/create-payment-intent", async (req, res) => {
+    const { paymentInfo } = req.body;
+    const amount = paymentInfo.orderTotal * 100;
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: calculateOrderAmount(items),
+      currency: "usd",
+      amount: amount,
+      automatic_payment_methods: ['card']
+    });
+  
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+  });
+
+  app.get('/payment/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: ObjectId(id) };
+    const result = await paymentCollection.findOne(query);
+    res.json(result);
+})
+
+
+  app.put('/payment/:id', async (req, res) => {
+    const id = req.params.id;
+    const payment = req.body;
+    const filter = { _id: ObjectId(id) };
+    const updateDoc = {
+        $set: {
+            payment: payment
+        }
+    };
+    const result = await paymentCollection.updateOne(filter, updateDoc);
+    res.json(result);
+})
   
     } finally {
       // await client.close();
